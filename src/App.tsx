@@ -10,6 +10,7 @@ import { ThemeProvider } from '@emotion/react';
 import { CssBaseline } from '@mui/material';
 import { getDocs, Transaction,collection, doc } from 'firebase/firestore';
 import { db } from './firebase';
+import { format } from 'date-fns';
 function App() {
 
    //Firestoreエラーかどうかを判定する型ガード
@@ -19,6 +20,8 @@ function App() {
   }
 
   const [transactions,setTransactions] = useState<Transaction[]>([])
+  const [currentMounth,setCurrentMounth] = useState(new Date());
+  const a = format(currentMounth,"yyyy-MM")
   
   useEffect(()=>{
     const fecheTransactions = async ()=>{
@@ -49,6 +52,13 @@ function App() {
     }
     fecheTransactions()
   },[])
+
+console.log(transactions)
+  transactions.filter((transaction) =>{
+    return transaction.date
+  
+  })
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
