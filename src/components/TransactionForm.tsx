@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import CloseIcon from "@mui/icons-material/Close"; // 閉じるボタン用のアイコン
-import { Controller, useForm } from "react-hook-form";
+import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import FastFoodIcon from '@mui/icons-material/Fastfood'
 import AlarmIcon from '@mui/icons-material/Alarm'
 import AddHomeIcon from '@mui/icons-material/AddHome'
@@ -29,6 +29,7 @@ interface TransactionFormProps {
   onCloseForm:() => void
   isEntryDrawerOpen: boolean
   currentDay:string
+  onSaveTransaction: (transaction: Schema) => Promise<void>
 }
 
 type IncomeExpesnse = "income" | "expense"
@@ -40,21 +41,30 @@ interface CategoryItem {
 
 
 
-const TransactionForm = ({onCloseForm,isEntryDrawerOpen, currentDay}:TransactionFormProps) => {
+const TransactionForm = ({onCloseForm,isEntryDrawerOpen, currentDay, onSaveTransaction}:TransactionFormProps) => {
 
-  const {control, setValue, watch, formState:{errors}, handleSubmit} = useForm<Schema>({
+  const {control, setValue, watch, formState:{errors}, handleSubmit,reset} = useForm<Schema>({
     defaultValues:{
       type:"expense",
       date:currentDay,
       amount:0,
-      category:"食費",
+      category:"食費", //空文字列を初期値に設定
       content:"",
     },
     resolver:zodResolver(transactionSchema)
   })
 
-  const onSubmit = (data:any) => {
+  //送信処理
+  const onSubmit:SubmitHandler<Schema> = (data) => {
     console.log(data)
+    onSaveTransaction(data);
+
+    reset({
+      date:currentDay,
+      amount:0,
+      category:"",
+      content:"",
+    })
   }
 
   const incomeExpenseToggle = (type: IncomeExpesnse) => {
@@ -161,10 +171,12 @@ const TransactionForm = ({onCloseForm,isEntryDrawerOpen, currentDay}:Transaction
           name="category"
           control={control}
           render={({field})=> (
-            <TextField id="カテゴリ" label="カテゴリ" select {...field} error={!!errors.category}
+            <TextField 
+           
+            id="カテゴリ" label="カテゴリ" select {...field} error={!!errors.category}
             helperText={errors.category?.message}>
-              {categories.map((category) => (
-                <MenuItem value={category.label}>
+              {categories.map((category,index) => (
+                <MenuItem value={category.label} key={index}>
                 <ListItemIcon>
                   {category.icon}
                 </ListItemIcon>
@@ -191,7 +203,8 @@ const TransactionForm = ({onCloseForm,isEntryDrawerOpen, currentDay}:Transaction
             value={field.value === 0 ? "": field.value} />)}
              />
           {/* 内容 */}
-          <Controller name="content" control={control} render={({field}) => ( <TextField label="内容" type="text"  {...field} error={!!errors.content}
+          <Controller name="content" control={control} render={({field}) => ( 
+            <TextField label="内容" type="text"  {...field} error={!!errors.content}
             helperText={errors.content?.message} />)} />
           {/* 保存ボタン */}
           <Button type="submit" variant="contained" color={currentType === "income" ? "primary" : "error"} fullWidth>
