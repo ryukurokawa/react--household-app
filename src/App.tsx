@@ -8,9 +8,11 @@ import AppLayout from './components/layout/AppLayout';
 import {theme} from './theme/theme'
 import { ThemeProvider } from '@emotion/react';
 import { CssBaseline } from '@mui/material';
-import { getDocs, Transaction,collection, doc } from 'firebase/firestore';
+import { getDocs, collection, doc } from 'firebase/firestore';
 import { db } from './firebase';
 import { format } from 'date-fns';
+import { Transaction } from './types';
+import { formatMonth } from './utils/formatting';
 function App() {
 
    //Firestoreエラーかどうかを判定する型ガード
@@ -54,8 +56,8 @@ function App() {
   },[])
 
 console.log(transactions)
-  transactions.filter((transaction) =>{
-    return transaction.date
+ const monthlyTransactions = transactions.filter((transaction) =>{
+    return transaction.date.startsWith(formatMonth(currentMounth))
   
   })
 
@@ -65,7 +67,7 @@ console.log(transactions)
     <Router>
       <Routes>
         <Route path="/" element={<AppLayout />}>
-         <Route index element={<Home />} />
+         <Route index element={<Home monthlyTransactions={monthlyTransactions} setCurrentMounth={setCurrentMounth} />} />
          <Route path="/report" element={<Report />} />
          <Route path="/*" element={<NoMatch />} />
         </Route>
