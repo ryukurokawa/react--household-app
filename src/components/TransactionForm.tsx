@@ -2,14 +2,20 @@ import {
   Box,
   Button,
   ButtonGroup,
+  Dialog,
+  DialogContent,
+  FormControl,
+  FormHelperText,
   IconButton,
+  InputLabel,
   ListItemIcon,
   MenuItem,
+  Select,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import CloseIcon from "@mui/icons-material/Close"; // 閉じるボタン用のアイコン
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import FastFoodIcon from '@mui/icons-material/Fastfood'
@@ -21,15 +27,25 @@ import TrainIcon from '@mui/icons-material/Train'
 import WorkIcon from '@mui/icons-material/Work'
 import SavingsIcon from '@mui/icons-material/Savings'
 import AddBusinessIcon  from '@mui/icons-material/AddBusiness'
-import { ExpenseCategory, IncomeCategory } from "../types";
+import { ExpenseCategory, IncomeCategory, Transaction } from "../types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Schema, transactionSchema } from "../validations/schema";
+import { AppContext, useAppContext } from "../context/AppContext";
 
 interface TransactionFormProps {
   onCloseForm:() => void
   isEntryDrawerOpen: boolean
   currentDay:string
-  onSaveTransaction: (transaction: Schema) => Promise<void>
+ // onSaveTransaction: (transaction: Schema) => Promise<void>
+  selectedTransaction: Transaction | null;
+  //onDeleteTransaction: (transactionId: string | readonly string[]) => Promise<void>
+  setSelectedTransaction: React.Dispatch<
+  React.SetStateAction<Transaction | null>
+  >;
+  //onUpdateTransaction:(transaction:Schema,transactionId:string) => Promise<void>
+  //isMobile: boolean
+  open: boolean
+  setIsDialogOpen: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 type IncomeExpesnse = "income" | "expense"
@@ -41,14 +57,33 @@ interface CategoryItem {
 
 
 
-const TransactionForm = ({onCloseForm,isEntryDrawerOpen, currentDay, onSaveTransaction}:TransactionFormProps) => {
+const TransactionForm = ({
+  onCloseForm,
+  isEntryDrawerOpen, 
+  currentDay, 
+  //onSaveTransaction,
+  selectedTransaction,
+  // onDeleteTransaction,
+   setSelectedTransaction,
+  // onUpdateTransaction,
+  //isMobile,
+  open,
+  setIsDialogOpen
+}:TransactionFormProps) => {
+
+const {
+  isMobile,
+  onSaveTransaction,
+  onDeleteTransaction,
+  onUpdateTransaction
+}= useAppContext()
 
   const {control, setValue, watch, formState:{errors}, handleSubmit,reset} = useForm<Schema>({
     defaultValues:{
       type:"expense",
       date:currentDay,
       amount:0,
-      category:"食費", //空文字列を初期値に設定
+      category:"", 
       content:"",
     },
     resolver:zodResolver(transactionSchema)
@@ -58,8 +93,29 @@ const TransactionForm = ({onCloseForm,isEntryDrawerOpen, currentDay, onSaveTrans
   const onSubmit:SubmitHandler<Schema> = (data) => {
     console.log(data)
     onSaveTransaction(data);
+    if(selectedTransaction){
+      onUpdateTransaction(data,selectedTransaction.id)
+      .then(()=>{
+        //console.log("更新しました")
+       setSelectedTransaction(null)
+       setIsDialogOpen(false)
+      })
+      .catch((error) => {
+        console.error(error)
+      })
+
+    }else{
+      onSaveTransaction(data)
+      .then(()=>{
+       
+      })
+      .catch((error) => {
+        console.error(error)
+      })
+    }
 
     reset({
+      type:"expense",
       date:currentDay,
       amount:0,
       category:"",
@@ -67,8 +123,38 @@ const TransactionForm = ({onCloseForm,isEntryDrawerOpen, currentDay, onSaveTrans
     })
   }
 
+  useEffect(() => {
+    if(selectedTransaction){
+      setValue("type",selectedTransaction.type)
+      setValue("date",selectedTransaction.date)
+      setValue("amount",selectedTransaction.amount)
+      setValue("category",selectedTransaction.category)
+      setValue("content",selectedTransaction.content)
+    }else{
+      reset({
+        type:"expense",
+        date:currentDay,
+        amount:0,
+        category:"",
+        content:"",
+      })
+    }
+  },[selectedTransaction])
+
+  const handleDelete = () => {
+    if(selectedTransaction){
+      onDeleteTransaction(selectedTransaction.id)
+      if(isMobile){
+        setIsDialogOpen(false)
+      }
+    }
+    setSelectedTransaction(null)
+  }
+
+  //収支タイプを切り替える関数
   const incomeExpenseToggle = (type: IncomeExpesnse) => {
     setValue("type", type)
+    setValue("category", "食費")
   }
 
   const currentType = watch("type")
@@ -99,29 +185,18 @@ const TransactionForm = ({onCloseForm,isEntryDrawerOpen, currentDay, onSaveTrans
     setCategories(newCategories)
   },[currentType])
 
-  const formWidth = 320;
-  return (
-    <Box
-      sx={{
-        position: "fixed",
-        top: 64,
-        right: isEntryDrawerOpen ? formWidth : "-2%", // フォームの位置を調整
-        width: formWidth,
-        height: "100%",
-        bgcolor: "background.paper",
-        zIndex: (theme) => theme.zIndex.drawer - 1,
-        transition: (theme) =>
-          theme.transitions.create("right", {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
-        p: 2, // 内部の余白
-        boxSizing: "border-box", // ボーダーとパディングをwidthに含める
-        boxShadow: "0px 0px 15px -5px #777777",
-      }}
-    >
-      {/* 入力エリアヘッダー */}
-      <Box display={"flex"} justifyContent={"space-between"} mb={2}>
+  useEffect(() => {
+    if(selectedTransaction){
+     const categoryExists =  categories.some((category) => category.label === selectedTransaction.category)
+     console.log(categories,categoryExists)
+     setValue("category", categoryExists ?  selectedTransaction.category : "")
+    }
+  },[selectedTransaction,categories])
+console.log("!!!!", selectedTransaction)
+  const formContent = (
+    <>
+          {/* 入力エリアヘッダー */}
+          <Box display={"flex"} justifyContent={"space-between"} mb={2}>
         <Typography variant="h6">入力</Typography>
         {/* 閉じるボタン */}
         <IconButton
@@ -171,19 +246,39 @@ const TransactionForm = ({onCloseForm,isEntryDrawerOpen, currentDay, onSaveTrans
           name="category"
           control={control}
           render={({field})=> (
-            <TextField 
-           
-            id="カテゴリ" label="カテゴリ" select {...field} error={!!errors.category}
-            helperText={errors.category?.message}>
+          //   <TextField  
+          //   id="カテゴリ" label="カテゴリ" select {...field} error={!!errors.category}
+          //   helperText={errors.category?.message}>
+          //     {categories.map((category,index) => (
+          //       <MenuItem value={category.label} key={index}>
+          //       <ListItemIcon>
+          //         {category.icon}
+          //       </ListItemIcon>
+          //         {category.label}
+          //       </MenuItem>
+          //     ))}
+          // </TextField>
+
+          <FormControl fullWidth error={!!errors.category}>
+            <InputLabel id="category-select-label">カテゴリ</InputLabel>
+              <Select
+              {...field}
+                  labelId="category-select-label"
+                    id="category-select"
+                   label="カテゴリ"
+                  
+            >
               {categories.map((category,index) => (
-                <MenuItem value={category.label} key={index}>
+                 <MenuItem value={category.label} key={index}>
                 <ListItemIcon>
-                  {category.icon}
-                </ListItemIcon>
-                  {category.label}
-                </MenuItem>
-              ))}
-          </TextField>
+                   {category.icon}
+                 </ListItemIcon>
+                   {category.label}
+                 </MenuItem>
+               ))}
+            </Select>
+            <FormHelperText>{errors.category?.message}</FormHelperText>
+            </FormControl>
           )}
           />
           {/* 金額 */}
@@ -207,12 +302,58 @@ const TransactionForm = ({onCloseForm,isEntryDrawerOpen, currentDay, onSaveTrans
             <TextField label="内容" type="text"  {...field} error={!!errors.content}
             helperText={errors.content?.message} />)} />
           {/* 保存ボタン */}
-          <Button type="submit" variant="contained" color={currentType === "income" ? "primary" : "error"} fullWidth>
-            保存
+          <Button 
+          type="submit" 
+          variant="contained" 
+          color={currentType === "income" ? "primary" : "error"} 
+          fullWidth
+          >
+            {selectedTransaction ? "更新" : "保存"}
+          
           </Button>
+
+          {selectedTransaction &&(
+            <Button onClick={handleDelete} variant="outlined" color={"secondary"} fullWidth>
+            削除
+          </Button>
+          )}
+          
         </Stack>
       </Box>
+      </>
+  )
+
+  const formWidth = 320;
+  return (
+    <>
+    {isMobile ? (
+      <Dialog open={open} onClose={onCloseForm} fullWidth maxWidth={"sm"}>
+        <DialogContent>{formContent}</DialogContent>
+      </Dialog>
+    ) : (
+      <Box
+      sx={{
+        position: "fixed",
+        top: 64,
+        right: isEntryDrawerOpen ? formWidth : "-2%", // フォームの位置を調整
+        width: formWidth,
+        height: "100%",
+        bgcolor: "background.paper",
+        zIndex: (theme) => theme.zIndex.drawer - 1,
+        transition: (theme) =>
+          theme.transitions.create("right", {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+        p: 2, // 内部の余白
+        boxSizing: "border-box", // ボーダーとパディングをwidthに含める
+        boxShadow: "0px 0px 15px -5px #777777",
+      }}
+    >
+     {formContent}
     </Box>
+    )}
+    </>
   );
 };
 export default TransactionForm;

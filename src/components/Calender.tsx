@@ -10,16 +10,31 @@ import { formatCurrency } from '../utils/formatting'
 import interactionPlugin, { DateClickArg } from '@fullcalendar/interaction';
 import { useTheme } from '@mui/material'
 import { isSameMonth } from 'date-fns'
+import useMonthlyTransactions from '../hooks/useMonthlyTransactions'
+import { useAppContext } from '../context/AppContext'
 
 
 interface CalendarProps{
-  monthlyTransactions:Transaction[],
-  setCurrentMounth: React.Dispatch<React.SetStateAction<Date>>
+ // monthlyTransactions:Transaction[],
+ // setCurrentMounth: React.Dispatch<React.SetStateAction<Date>>
   setCurrentDay: React.Dispatch<React.SetStateAction<string>>
   currentDay: string
   today:string
+  onDateClick: (dateInfo: DateClickArg) => void
 }
-const Calender = ({monthlyTransactions,setCurrentMounth,setCurrentDay,currentDay,today}: CalendarProps) => {
+const Calender = ({
+  //monthlyTransactions,
+  //setCurrentMonth,
+  setCurrentDay,
+  currentDay,
+  today, 
+  onDateClick
+}: CalendarProps) => {
+
+
+  const monthlyTransactions = useMonthlyTransactions();
+  const { setCurrentMonth } = useAppContext();
+
   // const events =[
   //   {title:'Meeting',start:new Date()},
   // ]
@@ -105,15 +120,11 @@ const createCalendrEvents = (dailyBalances:Record<string, Balance>):CalendarCont
 
 const handleDateSet = (datesetInfo:DatesSetArg) => {
   const currentMonth = datesetInfo.view.currentStart
-  setCurrentMounth(currentMonth)
+  setCurrentMonth(currentMonth)
   const todayDate = new Date()
   if(isSameMonth(todayDate, currentMonth)){
     setCurrentDay(today)
   }
-}
-
-const handleDateClick = (dateInfo:DateClickArg) => {
-  setCurrentDay(dateInfo.dateStr)
 }
 
 const calendarEvents = createCalendrEvents(dailyBalances)
@@ -126,7 +137,7 @@ const calendarEvents = createCalendrEvents(dailyBalances)
     events={[...calendarEvents, backgroundEvent]}
     eventContent ={renderEventContent}
     datesSet={handleDateSet}
-    dateClick={handleDateClick}
+    dateClick={onDateClick}
     />
   )
 }
